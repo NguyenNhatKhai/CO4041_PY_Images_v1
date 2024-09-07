@@ -27,7 +27,7 @@ def image_to_text(image_name):
                 for x in range(width):
                     r, g, b = image.getpixel((x, y))
                     file.write(f"{format(r, '08b')}{format(g, '08b')}{format(b, '08b')}")
-                file.write("\n")
+                file.write('\n')
 
 def text_to_image(image_name):
     width = get_image_width(image_name)
@@ -109,21 +109,21 @@ def correct_error_to_image(original_image_name, error_added_image_name, destinat
     with open(original_image_name + '.txt', 'r') as original_file, open(error_added_image_name + '.txt', 'r') as error_added_file:
         original_content = original_file.read().replace('\n', '')
         error_added_content = error_added_file.read().replace('\n', '')
-    destination_content = ''
-    for i in range(len(original_content) // MESSAGE):
+    destination_content = []
+    for i in range(len(original_content) // MESSAGE + 1):
         message_start = i * MESSAGE
-        message_end = message_start + MESSAGE
+        message_end = len(original_content) if i == len(original_content) // MESSAGE else message_start + MESSAGE
         different_symbols = 0
-        for j in range(MESSAGE // SYMBOL):
+        for j in range((message_end - message_start) // SYMBOL):
             symbol_start = message_start + j * SYMBOL
             symbol_end = symbol_start + SYMBOL
             if original_content[symbol_start : symbol_end] != error_added_content[symbol_start : symbol_end]:
                 different_symbols += 1
         if different_symbols > CAPABILITY:
-            destination_content = destination_content + error_added_content[message_start : message_end]
+            destination_content.append(error_added_content[message_start : message_end])
         else:
-            destination_content = destination_content + original_content[message_start : message_end]
-    destination_content = destination_content + original_content[(len(original_content) // MESSAGE) * MESSAGE : len(original_content)]
+            destination_content.append(original_content[message_start : message_end])
+    destination_content = ''.join(destination_content)
     width = get_image_width(original_image_name)
     height = get_image_height(original_image_name)
     destination_index = 0
@@ -131,7 +131,7 @@ def correct_error_to_image(original_image_name, error_added_image_name, destinat
         for _ in range(height):
             destination_file.write(destination_content[destination_index : destination_index + width * 24])
             destination_index += width * 24
-            destination_file.write("\n")
+            destination_file.write('\n')
 
 ERROR_RATE = 0.001
 ITERATIONS = 10
@@ -144,56 +144,72 @@ image_0_messages = image_0_bits // MESSAGE
 image_0_pixels = get_image_pixels(image_0)
 print('\t\t\t\tQuantity\t\tRatio')
 
-with open('output_prev_fec_ber.txt', 'w') as prev_fec_ber_file, open('output_post_fec_ber.txt', 'w') as post_fec_ber_file:
-    for i in range(ITERATIONS):
-        print(f"Performing {i}th iteration ...")
-        
-        image_1 = 'image_1'
-        add_error_to_image(image_0, image_1, ERROR_RATE)
-        text_to_image(image_1)
-        image_1_different_bits = count_different_bits(image_0, image_1)
-        image_1_different_bits_ratio = image_1_different_bits / image_0_bits
-        image_1_different_symbols = count_different_symbols(image_0, image_1)
-        image_1_different_symbols_ratio = image_1_different_symbols / image_0_symbols
-        image_1_different_messages = count_different_messages(image_0, image_1)
-        image_1_different_messages_ratio = image_1_different_messages / image_0_messages
-        image_1_different_pixels = count_different_pixels(image_0, image_1)
-        image_1_different_pixels_ratio = image_1_different_pixels / image_0_pixels
-        print(f"Different bits in {image_1}:\t{image_1_different_bits :016d}\t{image_1_different_bits_ratio :.16f}")
-        print(f"Different symbols in {image_1}:\t{image_1_different_symbols :016d}\t{image_1_different_symbols_ratio :.16f}")
-        print(f"Different messages in {image_1}:\t{image_1_different_messages :016d}\t{image_1_different_messages_ratio :.16f}")
-        print(f"Different pixels in {image_1}:\t{image_1_different_pixels :016d}\t{image_1_different_pixels_ratio :.16f}")
+pre_fec_ber_file = open('output_pre_fec_ber.txt', 'w')
+pre_fec_ser_file = open('output_pre_fec_ser.txt', 'w')
+pre_fec_bler_file = open('output_pre_fec_bler.txt', 'w')
+post_fec_ber_file = open('output_post_fec_ber.txt', 'w')
+post_fec_ser_file = open('output_post_fec_ser.txt', 'w')
+post_fec_bler_file = open('output_post_fec_bler.txt', 'w')
+for i in range(ITERATIONS):
+    print(f"Performing {i}{'th' if 10 <= i % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(i % 10, 'th')} iteration ...")
+    
+    image_1 = 'image_1'
+    add_error_to_image(image_0, image_1, ERROR_RATE)
+    text_to_image(image_1)
+    image_1_different_pixels = count_different_pixels(image_0, image_1)
+    image_1_different_pixels_ratio = image_1_different_pixels / image_0_pixels
+    image_1_different_bits = count_different_bits(image_0, image_1)
+    image_1_different_bits_ratio = image_1_different_bits / image_0_bits
+    image_1_different_symbols = count_different_symbols(image_0, image_1)
+    image_1_different_symbols_ratio = image_1_different_symbols / image_0_symbols
+    image_1_different_messages = count_different_messages(image_0, image_1)
+    image_1_different_messages_ratio = image_1_different_messages / image_0_messages
+    print(f"Different pixels in {image_1}:\t{image_1_different_pixels :016d}\t{image_1_different_pixels_ratio :.16f}")
+    print(f"Different bits in {image_1}:\t{image_1_different_bits :016d}\t{image_1_different_bits_ratio :.16f}")
+    print(f"Different symbols in {image_1}:\t{image_1_different_symbols :016d}\t{image_1_different_symbols_ratio :.16f}")
+    print(f"Different messages in {image_1}:\t{image_1_different_messages :016d}\t{image_1_different_messages_ratio :.16f}")
 
-        image_2 = 'image_2'
-        correct_error_to_image(image_0, image_1, image_2)
-        text_to_image(image_2)
-        image_2_different_bits = count_different_bits(image_0, image_2)
-        image_2_different_bits_ratio = image_2_different_bits / image_0_bits
-        image_2_different_symbols = count_different_symbols(image_0, image_2)
-        image_2_different_symbols_ratio = image_2_different_symbols / image_0_symbols
-        image_2_different_messages = count_different_messages(image_0, image_2)
-        image_2_different_messages_ratio = image_2_different_messages / image_0_messages
-        image_2_different_pixels = count_different_pixels(image_0, image_2)
-        image_2_different_pixels_ratio = image_2_different_pixels / image_0_pixels
-        print(f"Different bits in {image_2}:\t{image_2_different_bits :016d}\t{image_2_different_bits_ratio :.16f}")
-        print(f"Different symbols in {image_2}:\t{image_2_different_symbols :016d}\t{image_2_different_symbols_ratio :.16f}")
-        print(f"Different messages in {image_2}:\t{image_2_different_messages :016d}\t{image_2_different_messages_ratio :.16f}")
-        print(f"Different pixels in {image_2}:\t{image_2_different_pixels :016d}\t{image_2_different_pixels_ratio :.16f}")
+    image_2 = 'image_2'
+    correct_error_to_image(image_0, image_1, image_2)
+    text_to_image(image_2)
+    image_2_different_pixels = count_different_pixels(image_0, image_2)
+    image_2_different_pixels_ratio = image_2_different_pixels / image_0_pixels
+    image_2_different_bits = count_different_bits(image_0, image_2)
+    image_2_different_bits_ratio = image_2_different_bits / image_0_bits
+    image_2_different_symbols = count_different_symbols(image_0, image_2)
+    image_2_different_symbols_ratio = image_2_different_symbols / image_0_symbols
+    image_2_different_messages = count_different_messages(image_0, image_2)
+    image_2_different_messages_ratio = image_2_different_messages / image_0_messages
+    print(f"Different pixels in {image_2}:\t{image_2_different_pixels :016d}\t{image_2_different_pixels_ratio :.16f}")
+    print(f"Different bits in {image_2}:\t{image_2_different_bits :016d}\t{image_2_different_bits_ratio :.16f}")
+    print(f"Different symbols in {image_2}:\t{image_2_different_symbols :016d}\t{image_2_different_symbols_ratio :.16f}")
+    print(f"Different messages in {image_2}:\t{image_2_different_messages :016d}\t{image_2_different_messages_ratio :.16f}")
 
-        prev_fec_ber_file.write(f"{image_1_different_bits_ratio :.16f}\n")
-        post_fec_ber_file.write(f"{image_2_different_bits_ratio :.16f}\n")
-        print('')
+    pre_fec_ber_file.write(f"{image_1_different_bits_ratio :.16f}\n")
+    pre_fec_ser_file.write(f"{image_1_different_symbols_ratio :.16f}\n")
+    pre_fec_bler_file.write(f"{image_1_different_messages_ratio :.16f}\n")
+    post_fec_ber_file.write(f"{image_2_different_bits_ratio :.16f}\n")
+    post_fec_ser_file.write(f"{image_2_different_symbols_ratio :.16f}\n")
+    post_fec_bler_file.write(f"{image_2_different_messages_ratio :.16f}\n")
+    print('')
+pre_fec_ber_file.close()
+pre_fec_ser_file.close()
+pre_fec_bler_file.close()
+post_fec_ber_file.close()
+post_fec_ser_file.close()
+post_fec_bler_file.close()
 
-with open('output_prev_fec_ber.txt', 'r') as prev_fec_ber_file:
-    prev_fec_ber_lines = prev_fec_ber_file.readlines()
-    prev_fec_ber_numbers = [float(prev_fec_ber_line.strip()) for prev_fec_ber_line in prev_fec_ber_lines]
-    if prev_fec_ber_numbers:
-        prev_fec_ber_average = sum(prev_fec_ber_numbers) / len(prev_fec_ber_numbers)
-        print(f"Prev FEC BER:\t{prev_fec_ber_average :.16f}")
+def average_calculation(file_path):
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+        numbers = [float(line.strip()) for line in lines]
+        if numbers:
+            average = sum(numbers) / len(numbers)
+        return average
 
-with open('output_post_fec_ber.txt', 'r') as post_fec_ber_file:
-    post_fec_ber_lines = post_fec_ber_file.readlines()
-    post_fec_ber_numbers = [float(post_fec_ber_line.strip()) for post_fec_ber_line in post_fec_ber_lines]
-    if post_fec_ber_numbers:
-        post_fec_ber_average = sum(post_fec_ber_numbers) / len(post_fec_ber_numbers)
-        print(f"Post FEC BER:\t{post_fec_ber_average :.16f}")
+print(f"Pre FEC BER:\t{average_calculation('output_pre_fec_ber.txt') :.16f}")
+print(f"Pre FEC SER:\t{average_calculation('output_pre_fec_ser.txt') :.16f}")
+print(f"Pre FEC BLER:\t{average_calculation('output_pre_fec_bler.txt') :.16f}")
+print(f"Post FEC BLER:\t{average_calculation('output_post_fec_bler.txt') :.16f}")
+print(f"Post FEC SER:\t{average_calculation('output_post_fec_ser.txt') :.16f}")
+print(f"Post FEC BER:\t{average_calculation('output_post_fec_ber.txt') :.16f}")
