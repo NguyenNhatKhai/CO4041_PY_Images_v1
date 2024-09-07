@@ -57,13 +57,6 @@ def add_error_to_image(source_image_name, destination_image_name, error_rate):
     with open(destination_image_name + '.txt', 'w') as destination_file:
         destination_file.write(''.join(modified_content))
 
-def count_different_bits(first_image_name, second_image_name):
-    with open(first_image_name + '.txt', 'r') as first_file, open(second_image_name + '.txt', 'r') as second_file:
-        first_content = first_file.read().replace('\n', '')
-        second_content = second_file.read().replace('\n', '')
-    difference_count = sum(first_bit != second_bit for first_bit, second_bit in zip(first_content, second_content))
-    return difference_count
-
 def count_different_pixels(first_image_name, second_image_name):
     with open(first_image_name + '.txt', 'r') as first_file, open(second_image_name + '.txt', 'r') as second_file:
         first_content = first_file.read().replace('\n', '')
@@ -81,6 +74,13 @@ CODEWORD = 255 * SYMBOL
 MESSAGE = 239 * SYMBOL
 CAPABILITY = (CODEWORD - MESSAGE) // SYMBOL // 2
 
+def count_different_bits(first_image_name, second_image_name):
+    with open(first_image_name + '.txt', 'r') as first_file, open(second_image_name + '.txt', 'r') as second_file:
+        first_content = first_file.read().replace('\n', '')
+        second_content = second_file.read().replace('\n', '')
+    difference_count = sum(first_bit != second_bit for first_bit, second_bit in zip(first_content, second_content))
+    return difference_count
+
 def count_different_symbols(first_image_name, second_image_name):
     with open(first_image_name + '.txt', 'r') as first_file, open(second_image_name + '.txt', 'r') as second_file:
         first_content = first_file.read().replace('\n', '')
@@ -92,6 +92,18 @@ def count_different_symbols(first_image_name, second_image_name):
         if first_content[start : end] != second_content[start : end]:
             different_symbols += 1
     return different_symbols
+
+def count_different_messages(first_image_name, second_image_name):
+    with open(first_image_name + '.txt', 'r') as first_file, open(second_image_name + '.txt', 'r') as second_file:
+        first_content = first_file.read().replace('\n', '')
+        second_content = second_file.read().replace('\n', '')
+    different_messages = 0
+    for i in range(len(first_content) // MESSAGE):
+        start = i * MESSAGE
+        end = start + MESSAGE
+        if first_content[start : end] != second_content[start : end]:
+            different_messages += 1
+    return different_messages
 
 def correct_error_to_image(original_image_name, error_added_image_name, destination_image_name):
     with open(original_image_name + '.txt', 'r') as original_file, open(error_added_image_name + '.txt', 'r') as error_added_file:
@@ -111,18 +123,7 @@ def correct_error_to_image(original_image_name, error_added_image_name, destinat
             destination_content = destination_content + error_added_content[message_start : message_end]
         else:
             destination_content = destination_content + original_content[message_start : message_end]
-    last_message_start = (len(original_content) // MESSAGE) * MESSAGE
-    last_message_end = len(original_content)
-    last_different_symbols = 0
-    for j in range((last_message_end - last_message_start) // SYMBOL):
-        last_symbol_start = last_message_start + j * SYMBOL
-        last_symbol_end = last_symbol_start + SYMBOL
-        if original_content[last_symbol_start : last_symbol_end] != error_added_content[last_symbol_start : last_symbol_end]:
-            last_different_symbols += 1
-    if last_different_symbols > CAPABILITY:
-        destination_content = destination_content + error_added_content[last_message_start : last_message_end]
-    else:
-        destination_content = destination_content + original_content[last_message_start : last_message_end]
+    destination_content = destination_content + original_content[(len(original_content) // MESSAGE) * MESSAGE : len(original_content)]
     width = get_image_width(original_image_name)
     height = get_image_height(original_image_name)
     destination_index = 0
@@ -138,8 +139,9 @@ ITERATIONS = 10
 image_0 = 'image_0'
 image_to_text(image_0)
 image_0_bits = get_image_pixels(image_0) * 24
-image_0_pixels = get_image_pixels(image_0)
 image_0_symbols = image_0_bits // SYMBOL
+image_0_messages = image_0_bits // MESSAGE
+image_0_pixels = get_image_pixels(image_0)
 print('\t\t\t\tQuantity\t\tRatio')
 
 with open('output_prev_fec_ber.txt', 'w') as prev_fec_ber_file, open('output_post_fec_ber.txt', 'w') as post_fec_ber_file:
@@ -151,26 +153,32 @@ with open('output_prev_fec_ber.txt', 'w') as prev_fec_ber_file, open('output_pos
         text_to_image(image_1)
         image_1_different_bits = count_different_bits(image_0, image_1)
         image_1_different_bits_ratio = image_1_different_bits / image_0_bits
-        image_1_different_pixels = count_different_pixels(image_0, image_1)
-        image_1_different_pixels_ratio = image_1_different_pixels / image_0_pixels
         image_1_different_symbols = count_different_symbols(image_0, image_1)
         image_1_different_symbols_ratio = image_1_different_symbols / image_0_symbols
+        image_1_different_messages = count_different_messages(image_0, image_1)
+        image_1_different_messages_ratio = image_1_different_messages / image_0_messages
+        image_1_different_pixels = count_different_pixels(image_0, image_1)
+        image_1_different_pixels_ratio = image_1_different_pixels / image_0_pixels
         print(f"Different bits in {image_1}:\t{image_1_different_bits :016d}\t{image_1_different_bits_ratio :.16f}")
-        print(f"Different pixels in {image_1}:\t{image_1_different_pixels :016d}\t{image_1_different_pixels_ratio :.16f}")
         print(f"Different symbols in {image_1}:\t{image_1_different_symbols :016d}\t{image_1_different_symbols_ratio :.16f}")
+        print(f"Different messages in {image_1}:\t{image_1_different_messages :016d}\t{image_1_different_messages_ratio :.16f}")
+        print(f"Different pixels in {image_1}:\t{image_1_different_pixels :016d}\t{image_1_different_pixels_ratio :.16f}")
 
         image_2 = 'image_2'
         correct_error_to_image(image_0, image_1, image_2)
         text_to_image(image_2)
         image_2_different_bits = count_different_bits(image_0, image_2)
         image_2_different_bits_ratio = image_2_different_bits / image_0_bits
-        image_2_different_pixels = count_different_pixels(image_0, image_2)
-        image_2_different_pixels_ratio = image_2_different_pixels / image_0_pixels
         image_2_different_symbols = count_different_symbols(image_0, image_2)
         image_2_different_symbols_ratio = image_2_different_symbols / image_0_symbols
+        image_2_different_messages = count_different_messages(image_0, image_2)
+        image_2_different_messages_ratio = image_2_different_messages / image_0_messages
+        image_2_different_pixels = count_different_pixels(image_0, image_2)
+        image_2_different_pixels_ratio = image_2_different_pixels / image_0_pixels
         print(f"Different bits in {image_2}:\t{image_2_different_bits :016d}\t{image_2_different_bits_ratio :.16f}")
-        print(f"Different pixels in {image_2}:\t{image_2_different_pixels :016d}\t{image_2_different_pixels_ratio :.16f}")
         print(f"Different symbols in {image_2}:\t{image_2_different_symbols :016d}\t{image_2_different_symbols_ratio :.16f}")
+        print(f"Different messages in {image_2}:\t{image_2_different_messages :016d}\t{image_2_different_messages_ratio :.16f}")
+        print(f"Different pixels in {image_2}:\t{image_2_different_pixels :016d}\t{image_2_different_pixels_ratio :.16f}")
 
         prev_fec_ber_file.write(f"{image_1_different_bits_ratio :.16f}\n")
         post_fec_ber_file.write(f"{image_2_different_bits_ratio :.16f}\n")
